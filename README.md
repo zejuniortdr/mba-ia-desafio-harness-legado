@@ -1,5 +1,16 @@
 # Balcão
 
+[![gates](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/gates.yml/badge.svg)](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/gates.yml)
+[![kit-gates](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/kit.yml/badge.svg)](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/kit.yml)
+[![e2e](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/e2e.yml/badge.svg)](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/e2e.yml)
+[![docker](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/docker.yml/badge.svg)](https://github.com/zejuniortdr/mba-ia-desafio-harness-legado/actions/workflows/docker.yml)
+![Node.js](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+
 Central de chamados. Clientes abrem chamados, uma IA faz a triagem (categoria e prioridade) em segundo plano, atendentes assumem, respondem e resolvem, e o admin acompanha as estatísticas.
 
 - `api/`: API em Express + Prisma e o worker de triagem (processo separado).
@@ -25,7 +36,8 @@ Todos rodam na raiz do repositório.
 | Comando | O que faz |
 |---|---|
 | `npm run up` | Sobe o Balcão inteiro desta cópia: instala as dependências com `npm ci`, sobe um Postgres próprio, aplica as migrations, roda a seed, sobe API, worker e front e ativa o hook do Git. Pode rodar de novo sem derrubar antes. |
-| `npm run down` | Derruba tudo que o `up` desta cópia iniciou (API, worker, front e o Postgres dela). Os dados ficam no volume para a próxima subida. Outras cópias não são afetadas. |
+| `npm run up:docker` | Alternativa ao `up` com API, worker e front em containers (`node:22`, código montado do host, hot reload). Mesmo isolamento por cópia e a mesma saída. Só precisa de Docker e Node no host. |
+| `npm run down` | Derruba tudo que o `up` ou o `up:docker` desta cópia iniciou (API, worker, front e o Postgres dela). Os dados ficam no volume para a próxima subida. Outras cópias não são afetadas. |
 | `npm run gates` | Roda todas as verificações e termina com a lista de violações, uma por linha (`G4 api/src/http/routes/stats.ts`). Sai com código diferente de zero se houver alguma. |
 
 ### O que a subida informa
@@ -44,11 +56,24 @@ As portas variam: a primeira subida de cada cópia escolhe portas livres a parti
 
 A IA roda em modo fake por padrão (`AI_MODE=fake` em `api/.env`): classifica por palavras-chave e não precisa de chave. Para usar a OpenAI, ponha `AI_MODE=openai` e `OPENAI_API_KEY` no `api/.env` e rode `npm run up` de novo. O `up` preserva essas chaves.
 
+### Modo docker
+
+`npm run up:docker` sobe o Postgres e, no perfil `app` do `docker-compose.yml`, os serviços `api`, `worker` e `web`. Antes deles, um container `setup` roda `npm ci` (só quando o lockfile muda), `prisma generate`, as migrations e a seed. O `node_modules` fica num volume da cópia, separado do host. Os containers rodam com o seu UID e GID, então os anexos em `.balcao/uploads` continuam sendo seus. O modo host e o modo docker da mesma cópia não rodam juntos: cada `up` para o outro modo antes de subir. Logs: `docker compose -p <projeto impresso> logs -f api worker web`.
+
 ### Testes
 
 - **Unitários**, sem banco: `cd api && npm test`.
 - **Caixa-preta**, com a cópia no ar: `cd blackbox && npm ci && API_URL=<API impressa pelo up> npm test`.
 - **Integração** (fora dos critérios do harness): o `up` grava em `api/.env` uma `DATABASE_URL_TEST` apontando para a base `balcao_test` do Postgres da cópia. Crie e migre essa base uma vez e rode `cd api && npm run test:integration`.
+
+### CI (GitHub Actions)
+
+| Workflow | O que prova |
+|---|---|
+| [`gates`](.github/workflows/gates.yml) | `npm run gates` com Node 22 e 24, e sintaxe dos scripts no bash 3.2 do macOS. |
+| [`kit-gates`](.github/workflows/kit.yml) | Cada violação de `kit-gates/violacoes` (G1 a G10 e R1 a R4) continua barrada. Pega a config de gate que desligou uma regra em silêncio. |
+| [`e2e`](.github/workflows/e2e.yml) | Fluxo do avaliador: subida duas vezes, segunda worktree com portas próprias, caixa-preta nas duas cópias, derrubar uma sem afetar a outra e hook bloqueando commit com erro de tipo e com variável sem uso. |
+| [`docker`](.github/workflows/docker.yml) | `npm run up:docker` duas vezes e a caixa-preta contra a API do container. |
 
 ## Contas da seed
 
@@ -100,6 +125,7 @@ O kit copia o arquivo de exemplo, roda os gates, confere a linha `R<n> <arquivo>
 - **Configuração:** o `up` gera o `api/.env` da cópia com `DATABASE_URL`, `PORT`, `UPLOAD_DIR` e `WEB_ORIGIN` (para o CORS) e sobe o front com `VITE_API_URL` apontando para a API da mesma cópia. O código lê tudo isso só por `api/src/config/` e `web/src/config/`.
 - **Anexos:** em `.balcao/uploads/` da cópia, em vez de `/tmp/balcao/uploads` compartilhado.
 - **Processos:** API, worker e front rodam no host, cada um no próprio grupo de processos, com os PIDs em `.balcao/pids/`. O `down` encerra os grupos desta cópia e o projeto compose dela, e nada mais.
+- **Modo docker:** os mesmos projeto, portas e anexos da cópia. O compose só muda onde API, worker e front rodam.
 - **Seed:** idempotente. Usuários entram por `upsert` e os chamados de exemplo só são criados se ainda não existirem. Por isso a subida repetida não quebra nem duplica nada.
 
 ### Como as violações que já existiam foram corrigidas

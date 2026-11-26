@@ -5,7 +5,8 @@ Central de chamados. API Express + Prisma em `api/`, worker de triagem em `api/s
 ## Ambiente (cada clone ou worktree é uma cópia isolada)
 
 - Subir: `npm run up` na raiz. Instala com `npm ci`, sobe um Postgres só desta cópia, migra, roda a seed, sobe API, worker e front e imprime as URLs da API e do front, o banco e a pasta de anexos. Pode rodar de novo sem derrubar.
-- Derrubar: `npm run down`. Afeta só esta cópia; os dados do banco ficam para a próxima subida.
+- Alternativa em containers: `npm run up:docker` (mesmo isolamento e a mesma saída).
+- Derrubar: `npm run down` (vale para os dois modos). Afeta só esta cópia; os dados do banco ficam para a próxima subida.
 - Logs, portas e anexos da cópia ficam em `.balcao/` (criado pelo up). `api/.env` também é gerado pelo up.
 - Não suba processo à mão nem mate processo por porta: use up/down.
 - A IA roda em modo fake por padrão (`AI_MODE=fake`), sem chave.

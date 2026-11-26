@@ -1,0 +1,43 @@
+name: gates
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: gates (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+      # G1-G10 e R1-R4; inclui os testes unitários da API (G3).
+      - run: npm run gates
+
+  scripts-macos:
+    # O avaliador pode usar macOS: os scripts precisam funcionar no bash 3.2 de lá.
+    name: scripts no bash do macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: sintaxe no /bin/bash (3.2)
+        run: |
+          /bin/bash --version | head -1
+          for f in scripts/*.sh .githooks/pre-commit; do /bin/bash -n "$f" && echo "ok $f"; done
+      - name: identidade e portas da cópia (lib.sh)
+        run: |
+          /bin/bash -c '. scripts/lib.sh; echo "id=$ID"; p=$(pick_port 4000); echo "porta livre=$p"; [ -n "$ID" ] && [ -n "$p" ]'
