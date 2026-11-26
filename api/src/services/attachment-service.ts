@@ -6,8 +6,9 @@ import { HttpError } from '../http/errors'
 import { CurrentUser } from '../domain/ticket'
 import { AttachmentRepository } from '../repositories/attachment-repository'
 import { TicketService } from './ticket-service'
+import { env } from '../config/env'
 
-const uploadDir = process.env.UPLOAD_DIR || '/tmp/balcao/uploads'
+const uploadDir = env.UPLOAD_DIR
 
 const MAX_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf', 'text/plain']

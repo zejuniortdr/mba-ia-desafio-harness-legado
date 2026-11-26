@@ -6,10 +6,11 @@ import ticketRoutes from './routes/tickets'
 import attachmentRoutes from './routes/attachments'
 import statsRoutes from './routes/stats'
 import { errorHandler, notFoundHandler } from './errors'
+import { env } from '../config/env'
 
 export const app = express()
 
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({ origin: env.WEB_ORIGIN }))
 app.use(express.json())
 
 app.use('/api/health', healthRoutes)

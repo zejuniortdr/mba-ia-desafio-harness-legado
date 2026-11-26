@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getCurrentUser } from '../api/auth'
 import { getToken } from '../api/client'
+import { API_URL } from '../config/env'
 import {
   addReply,
   assignTicket,
@@ -86,8 +87,7 @@ export default function TicketDetailPage() {
   }
 
   async function handleDownload(attachment: Attachment) {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
-    const res = await fetch(`${apiUrl}/api/attachments/${attachment.id}/download`, {
+    const res = await fetch(`${API_URL}/api/attachments/${attachment.id}/download`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     if (!res.ok) {

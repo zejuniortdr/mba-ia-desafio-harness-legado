@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
+import { env } from '../../config/env'
 
-const secret = process.env.JWT_SECRET || 'dev-secret'
+const secret = env.JWT_SECRET
 
 export function signToken(user: { id: string; role: string }) {
   return jwt.sign({ sub: user.id, role: user.role }, secret, { expiresIn: '8h' })

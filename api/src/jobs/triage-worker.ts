@@ -1,11 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 import { classifyTicket } from '../integrations/ai-client'
+import { env } from '../config/env'
 
 const prisma = new PrismaClient({
-  datasources: { db: { url: process.env.DATABASE_URL } },
+  datasources: { db: { url: env.DATABASE_URL } },
 })
 
-const interval = Number(process.env.TRIAGE_INTERVAL_MS || 2000)
+const interval = env.TRIAGE_INTERVAL_MS
 
 async function runOnce() {
   const tickets = await prisma.ticket.findMany({

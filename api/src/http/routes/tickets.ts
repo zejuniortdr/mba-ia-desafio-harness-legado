@@ -9,6 +9,7 @@ import { replyRepository } from '../../repositories/reply-repository'
 import { attachmentRepository } from '../../repositories/attachment-repository'
 import { AttachmentService } from '../../services/attachment-service'
 import { userRepository } from '../../repositories/user-repository'
+import { env } from '../../config/env'
 
 const router = Router()
 const ticketService = new TicketService(ticketRepository, replyRepository)
@@ -115,8 +116,8 @@ router.post(
     const customer = await userRepository.findById(ticket.customerId)
     const customerName = customer ? customer.name : 'cliente'
 
-    if (process.env.AI_MODE === 'openai') {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    if (env.AI_MODE === 'openai') {
+      const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY })
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
