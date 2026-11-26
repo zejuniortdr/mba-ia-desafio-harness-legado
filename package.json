@@ -1,0 +1,8 @@
+{
+  "name": "balcao",
+  "private": true,
+  "scripts": {
+    "up": "bash scripts/up.sh",
+    "down": "bash scripts/down.sh"
+  }
+}
