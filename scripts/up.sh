@@ -62,7 +62,8 @@ set -m
 start() {
   local name=$1 dir=$2
   shift 2
-  (cd "$dir" && exec nohup "$@" > "$LOGS/$name.log" 2>&1) &
+  # stdin em /dev/null: no macOS o nohup não faz isso, e o vite parado lendo o terminal (SIGTTIN) trava a subida.
+  (cd "$dir" && exec nohup "$@" < /dev/null > "$LOGS/$name.log" 2>&1) &
   echo $! > "$PIDS/$name.pid"
 }
 start api "$ROOT/api" npm run dev
@@ -73,7 +74,7 @@ set +m
 # 8. Espera a API (com banco) e o front responderem.
 wait_http() {
   local url=$1 name=$2 i=0
-  until node -e "fetch('$url').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; do
+  until node -e "fetch('$url',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; do
     i=$((i + 1))
     if [ $i -ge 60 ]; then
       echo "$name não respondeu em $url; últimas linhas de $LOGS/$name.log:" >&2
