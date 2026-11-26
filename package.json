@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "up": "bash scripts/up.sh",
+    "up:docker": "bash scripts/up-docker.sh",
     "down": "bash scripts/down.sh",
     "gates": "node scripts/gates.mjs"
   },

@@ -1,3 +1,26 @@
+# Postgres de cada cópia. `npm run up` usa só o db; `npm run up:docker` liga também o perfil "app".
+# Sempre por scripts/up.sh ou scripts/up-docker.sh: eles escolhem o projeto (-p) e as portas da cópia.
+x-node: &node
+  image: node:22-bookworm
+  profiles: [app]
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  environment: &node-env
+    HOME: /tmp
+    DATABASE_URL: postgresql://balcao:balcao@db:5432/balcao
+    PORT: "4000"
+    UPLOAD_DIR: /uploads
+    WEB_ORIGIN: http://localhost:${WEB_PORT:-5173}
+    AI_MODE: ${AI_MODE:-fake}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    JWT_SECRET: ${JWT_SECRET:-dev-secret}
+  volumes:
+    - ./api:/app/api
+    - ./web:/app/web
+    - api_node_modules:/app/api/node_modules
+    - web_node_modules:/app/web/node_modules
+    - ./scripts:/app/scripts:ro
+    - ${UPLOADS_DIR:-./.balcao/uploads}:/uploads
+
 services:
   db:
     image: postgres:16
@@ -15,5 +38,39 @@ services:
       timeout: 3s
       retries: 30
 
+  # Roda uma vez por subida: npm ci (se o lockfile mudou), prisma generate, migrations e seed.
+  setup:
+    <<: *node
+    user: root
+    environment:
+      <<: *node-env
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    command: ["bash", "/app/scripts/docker-setup.sh"]
+
+  api:
+    <<: *node
+    working_dir: /app/api
+    command: ["npx", "tsx", "watch", "src/main.ts"]
+    ports:
+      - "${API_PORT:-4000}:4000"
+
+  worker:
+    <<: *node
+    working_dir: /app/api
+    command: ["npx", "tsx", "src/jobs/triage-worker.ts"]
+
+  web:
+    <<: *node
+    working_dir: /app/web
+    environment:
+      <<: *node-env
+      VITE_API_URL: http://localhost:${API_PORT:-4000}
+    command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+
 volumes:
   pgdata:
+  api_node_modules:
+  web_node_modules:
