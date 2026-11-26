@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import multer from 'multer'
 import OpenAI from 'openai'
-import { asyncHandler, HttpError } from '../errors'
+import { asyncHandler } from '../errors'
+import { AppError } from '../../domain/errors'
 import { requireAuth } from '../middlewares/auth'
 import { TicketService } from '../../services/ticket-service'
 import { ticketRepository } from '../../repositories/ticket-repository'
@@ -101,7 +102,7 @@ router.post(
   '/:id/attachments',
   upload.single('file'),
   asyncHandler(async (req, res) => {
-    const attachment = await attachmentService.upload(req, req.params.id)
+    const attachment = await attachmentService.upload(req.user, req.params.id, req.file)
     res.status(201).json(attachment)
   }),
 )
@@ -110,7 +111,7 @@ router.post(
   '/:id/suggest-reply',
   asyncHandler(async (req, res) => {
     if (req.user.role === 'customer') {
-      throw new HttpError(403, 'forbidden', 'Só atendentes e admins podem pedir sugestão')
+      throw new AppError(403, 'forbidden', 'Só atendentes e admins podem pedir sugestão')
     }
     const ticket = await ticketService.getById(req.user, req.params.id)
     const customer = await userRepository.findById(ticket.customerId)

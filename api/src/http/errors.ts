@@ -1,14 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
+import { AppError } from '../domain/errors'
 
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-  ) {
-    super(message)
-  }
-}
 
 export function asyncHandler(fn: (req: any, res: Response, next: NextFunction) => Promise<any>) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -21,7 +13,7 @@ export function notFoundHandler(_req: Request, res: Response) {
 }
 
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  if (err instanceof HttpError) {
+  if (err instanceof AppError) {
     return res.status(err.status).json({ error: err.code, message: err.message })
   }
   if (err.name === 'MulterError') {

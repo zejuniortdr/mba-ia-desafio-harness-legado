@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { AttachmentService } from './attachment-service'
 import { TicketService } from './ticket-service'
+import { AppError } from '../domain/errors'
+import { CurrentUser } from '../domain/ticket'
+import { UploadedFile } from '../domain/upload'
+import { AttachmentRepository } from '../repositories/attachment-repository'
 
-function fakeTicketService(ticket: any) {
+const ticket = { id: 't1', customerId: 'c1' }
+const owner: CurrentUser = { id: 'c1', role: 'customer' }
+const stranger: CurrentUser = { id: 'c2', role: 'customer' }
+
+function fakeTicketService() {
   return {
-    getById: async (user: any, id: string) => {
+    getById: async (user: CurrentUser, id: string) => {
       if (id !== ticket.id || (user.role === 'customer' && user.id !== ticket.customerId)) {
-        const { HttpError } = await import('../http/errors')
-        throw new HttpError(404, 'not_found', 'Chamado não encontrado')
+        throw new AppError(404, 'not_found', 'Chamado não encontrado')
       }
       return ticket
     },
@@ -15,38 +22,46 @@ function fakeTicketService(ticket: any) {
 }
 
 const fakeAttachments = {
-  create: async (data: any) => ({ id: 'att1', createdAt: new Date(), ...data }),
+  create: async (data: Parameters<AttachmentRepository['create']>[0]) => ({ id: 'att1', createdAt: new Date(), ...data }),
   findById: async () => null,
+} as AttachmentRepository
+
+function file(overrides: Partial<UploadedFile>): UploadedFile {
+  return { size: 10, mimetype: 'text/plain', originalname: 'a.txt', buffer: Buffer.from(''), ...overrides }
 }
 
-const ticket = { id: 't1', customerId: 'c1' }
-
 describe('AttachmentService', () => {
-  const service = new AttachmentService(fakeAttachments, fakeTicketService(ticket))
+  const service = new AttachmentService(fakeAttachments, fakeTicketService())
 
   it('exige arquivo', async () => {
-    const req: any = { user: { id: 'c1', role: 'customer' } }
-    await expect(service.upload(req, 't1')).rejects.toMatchObject({ status: 422 })
+    // Act
+    const result = service.upload(owner, 't1', undefined)
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ status: 422 })
   })
 
   it('recusa arquivo maior que 5 MB', async () => {
-    const req: any = {
-      user: { id: 'c1', role: 'customer' },
-      file: { size: 5 * 1024 * 1024 + 1, mimetype: 'text/plain', originalname: 'a.txt', buffer: Buffer.from('') },
-    }
-    await expect(service.upload(req, 't1')).rejects.toMatchObject({ status: 413, code: 'file_too_large' })
+    // Act
+    const result = service.upload(owner, 't1', file({ size: 5 * 1024 * 1024 + 1 }))
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ status: 413, code: 'file_too_large' })
   })
 
   it('recusa tipo não suportado', async () => {
-    const req: any = {
-      user: { id: 'c1', role: 'customer' },
-      file: { size: 10, mimetype: 'image/gif', originalname: 'a.gif', buffer: Buffer.from('') },
-    }
-    await expect(service.upload(req, 't1')).rejects.toMatchObject({ status: 415, code: 'unsupported_type' })
+    // Act
+    const result = service.upload(owner, 't1', file({ mimetype: 'image/gif', originalname: 'a.gif' }))
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ status: 415, code: 'unsupported_type' })
   })
 
   it('não deixa outro cliente enviar', async () => {
-    const req: any = { user: { id: 'c2', role: 'customer' } }
-    await expect(service.upload(req, 't1')).rejects.toMatchObject({ status: 404 })
+    // Act
+    const result = service.upload(stranger, 't1', file({}))
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ status: 404 })
   })
 })

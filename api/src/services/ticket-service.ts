@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { HttpError } from '../http/errors'
+import { AppError } from '../domain/errors'
 import { CurrentUser, Ticket, TICKET_STATUSES, TicketStatus } from '../domain/ticket'
 import { TicketRepository } from '../repositories/ticket-repository'
 import { ReplyRepository } from '../repositories/reply-repository'
@@ -39,11 +39,11 @@ export class TicketService {
 
   async create(user: CurrentUser, input: unknown) {
     if (user.role !== 'customer') {
-      throw new HttpError(403, 'forbidden', 'Só clientes podem abrir chamados')
+      throw new AppError(403, 'forbidden', 'Só clientes podem abrir chamados')
     }
     const parsed = createTicketSchema.safeParse(input)
     if (!parsed.success) {
-      throw new HttpError(422, 'validation_error', parsed.error.issues[0].message)
+      throw new AppError(422, 'validation_error', parsed.error.issues[0].message)
     }
     return this.tickets.create({ ...parsed.data, customerId: user.id })
   }
@@ -52,7 +52,7 @@ export class TicketService {
     let status: TicketStatus | undefined
     if (query.status) {
       if (!TICKET_STATUSES.includes(query.status as TicketStatus)) {
-        throw new HttpError(422, 'validation_error', 'Status inválido')
+        throw new AppError(422, 'validation_error', 'Status inválido')
       }
       status = query.status as TicketStatus
     }
@@ -65,7 +65,7 @@ export class TicketService {
   async getById(user: CurrentUser, id: string): Promise<Ticket> {
     const ticket = await this.tickets.findById(id)
     if (!ticket || (user.role === 'customer' && ticket.customerId !== user.id)) {
-      throw new HttpError(404, 'not_found', 'Chamado não encontrado')
+      throw new AppError(404, 'not_found', 'Chamado não encontrado')
     }
     return ticket
   }
@@ -77,11 +77,11 @@ export class TicketService {
 
   async assign(user: CurrentUser, id: string) {
     if (user.role === 'customer') {
-      throw new HttpError(403, 'forbidden', 'Só atendentes e admins assumem chamados')
+      throw new AppError(403, 'forbidden', 'Só atendentes e admins assumem chamados')
     }
     const ticket = await this.getById(user, id)
     if (ticket.status === 'resolved') {
-      throw new HttpError(409, 'invalid_transition', 'Chamado resolvido não pode ser assumido')
+      throw new AppError(409, 'invalid_transition', 'Chamado resolvido não pode ser assumido')
     }
     const updated = await this.tickets.update(id, { status: 'in_progress', assigneeId: user.id })
     notifyAssignee(updated, user.id)
@@ -90,14 +90,14 @@ export class TicketService {
 
   async resolve(user: CurrentUser, id: string) {
     if (user.role === 'customer') {
-      throw new HttpError(403, 'forbidden', 'Só atendentes e admins resolvem chamados')
+      throw new AppError(403, 'forbidden', 'Só atendentes e admins resolvem chamados')
     }
     const ticket = await this.getById(user, id)
     if (user.role !== 'admin' && ticket.assigneeId !== user.id) {
-      throw new HttpError(403, 'forbidden', 'Só quem assumiu o chamado pode resolver')
+      throw new AppError(403, 'forbidden', 'Só quem assumiu o chamado pode resolver')
     }
     if (ticket.status !== 'in_progress') {
-      throw new HttpError(409, 'invalid_transition', 'Só chamado em andamento pode ser resolvido')
+      throw new AppError(409, 'invalid_transition', 'Só chamado em andamento pode ser resolvido')
     }
     return this.tickets.update(id, { status: 'resolved' })
   }
@@ -106,7 +106,7 @@ export class TicketService {
     const ticket = await this.getById(user, id)
     const parsed = replySchema.safeParse(input)
     if (!parsed.success) {
-      throw new HttpError(422, 'validation_error', parsed.error.issues[0].message)
+      throw new AppError(422, 'validation_error', parsed.error.issues[0].message)
     }
     const reply = await this.replies.create({ ticketId: id, authorId: user.id, body: parsed.data.body })
     if (user.role === 'customer' && ticket.status === 'resolved') {

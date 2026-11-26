@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import type { Request } from 'express'
-import { HttpError } from '../http/errors'
+import { AppError } from '../domain/errors'
 import { CurrentUser } from '../domain/ticket'
+import { UploadedFile } from '../domain/upload'
 import { AttachmentRepository } from '../repositories/attachment-repository'
 import { TicketService } from './ticket-service'
 import { env } from '../config/env'
@@ -19,19 +19,17 @@ export class AttachmentService {
     private tickets: TicketService,
   ) {}
 
-  async upload(req: Request, ticketId: string) {
-    const user: CurrentUser = (req as any).user
+  async upload(user: CurrentUser, ticketId: string, file: UploadedFile | undefined) {
     await this.tickets.getById(user, ticketId)
 
-    const file = req.file
     if (!file) {
-      throw new HttpError(422, 'validation_error', 'Envie o arquivo no campo file')
+      throw new AppError(422, 'validation_error', 'Envie o arquivo no campo file')
     }
     if (file.size > MAX_SIZE) {
-      throw new HttpError(413, 'file_too_large', 'O arquivo pode ter no máximo 5 MB')
+      throw new AppError(413, 'file_too_large', 'O arquivo pode ter no máximo 5 MB')
     }
     if (!ALLOWED_TYPES.includes(file.mimetype)) {
-      throw new HttpError(415, 'unsupported_type', 'Tipo de arquivo não suportado')
+      throw new AppError(415, 'unsupported_type', 'Tipo de arquivo não suportado')
     }
 
     fs.mkdirSync(uploadDir, { recursive: true })
@@ -51,12 +49,12 @@ export class AttachmentService {
   async getForDownload(user: CurrentUser, attachmentId: string) {
     const attachment = await this.attachments.findById(attachmentId)
     if (!attachment) {
-      throw new HttpError(404, 'not_found', 'Anexo não encontrado')
+      throw new AppError(404, 'not_found', 'Anexo não encontrado')
     }
     try {
       await this.tickets.getById(user, attachment.ticketId)
     } catch (err) {
-      throw new HttpError(404, 'not_found', 'Anexo não encontrado')
+      throw new AppError(404, 'not_found', 'Anexo não encontrado')
     }
     return { attachment, filePath: path.join(uploadDir, attachment.storedName) }
   }

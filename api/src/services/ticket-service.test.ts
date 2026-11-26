@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TicketService, formatTicketRef } from './ticket-service'
-import { HttpError } from '../http/errors'
+import { AppError } from '../domain/errors'
 import { CurrentUser, Ticket } from '../domain/ticket'
 import { TicketFilter, TicketRepository, TicketUpdate } from '../repositories/ticket-repository'
 import { ReplyRepository } from '../repositories/reply-repository'
@@ -69,9 +69,9 @@ const agent: CurrentUser = { id: 'a1', role: 'agent' }
 const otherAgent: CurrentUser = { id: 'a2', role: 'agent' }
 const admin: CurrentUser = { id: 'adm', role: 'admin' }
 
-async function expectHttpError(promise: Promise<unknown>, status: number, code: string) {
+async function expectAppError(promise: Promise<unknown>, status: number, code: string) {
   const err: any = await promise.catch((e) => e)
-  expect(err).toBeInstanceOf(HttpError)
+  expect(err).toBeInstanceOf(AppError)
   expect(err.status).toBe(status)
   expect(err.code).toBe(code)
 }
@@ -99,12 +99,12 @@ describe('TicketService', () => {
   })
 
   it('não deixa atendente abrir chamado', async () => {
-    await expectHttpError(service.create(agent, valid), 403, 'forbidden')
+    await expectAppError(service.create(agent, valid), 403, 'forbidden')
   })
 
   it('valida título e descrição', async () => {
-    await expectHttpError(service.create(customer, { title: 'Oi', description: valid.description }), 422, 'validation_error')
-    await expectHttpError(service.create(customer, { title: valid.title, description: 'curta' }), 422, 'validation_error')
+    await expectAppError(service.create(customer, { title: 'Oi', description: valid.description }), 422, 'validation_error')
+    await expectAppError(service.create(customer, { title: valid.title, description: 'curta' }), 422, 'validation_error')
   })
 
   it('cliente só lista os próprios chamados', async () => {
@@ -120,7 +120,7 @@ describe('TicketService', () => {
 
   it('cliente recebe 404 no chamado de outro cliente', async () => {
     const ticket = await service.create(otherCustomer, valid)
-    await expectHttpError(service.getById(customer, ticket.id), 404, 'not_found')
+    await expectAppError(service.getById(customer, ticket.id), 404, 'not_found')
   })
 
   it('atendente assume chamado aberto', async () => {
@@ -134,25 +134,25 @@ describe('TicketService', () => {
     const ticket = await service.create(customer, valid)
     await service.assign(agent, ticket.id)
     await service.resolve(agent, ticket.id)
-    await expectHttpError(service.assign(agent, ticket.id), 409, 'invalid_transition')
+    await expectAppError(service.assign(agent, ticket.id), 409, 'invalid_transition')
   })
 
   it('cliente não assume chamado', async () => {
     const ticket = await service.create(customer, valid)
-    await expectHttpError(service.assign(customer, ticket.id), 403, 'forbidden')
+    await expectAppError(service.assign(customer, ticket.id), 403, 'forbidden')
   })
 
   it('só quem assumiu resolve', async () => {
     const ticket = await service.create(customer, valid)
     await service.assign(agent, ticket.id)
-    await expectHttpError(service.resolve(otherAgent, ticket.id), 403, 'forbidden')
+    await expectAppError(service.resolve(otherAgent, ticket.id), 403, 'forbidden')
     const resolved = await service.resolve(admin, ticket.id)
     expect(resolved.status).toBe('resolved')
   })
 
   it('não resolve chamado que não está em andamento', async () => {
     const ticket = await service.create(customer, valid)
-    await expectHttpError(service.resolve(admin, ticket.id), 409, 'invalid_transition')
+    await expectAppError(service.resolve(admin, ticket.id), 409, 'invalid_transition')
   })
 
   it('resposta do cliente reabre chamado resolvido mantendo o responsável', async () => {
@@ -175,7 +175,7 @@ describe('TicketService', () => {
 
   it('não aceita resposta vazia', async () => {
     const ticket = await service.create(customer, valid)
-    await expectHttpError(service.addReply(customer, ticket.id, { body: '' }), 422, 'validation_error')
+    await expectAppError(service.addReply(customer, ticket.id, { body: '' }), 422, 'validation_error')
     expect(replies.items).toHaveLength(0)
   })
 
