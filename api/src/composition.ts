@@ -5,12 +5,14 @@ import { pingDatabase } from './repositories/prisma'
 import { replyRepository } from './repositories/reply-repository'
 import { statsRepository } from './repositories/stats-repository'
 import { ticketRepository } from './repositories/ticket-repository'
+import { triageRepository } from './repositories/triage-repository'
 import { userRepository } from './repositories/user-repository'
 import { AttachmentService } from './services/attachment-service'
 import { AuthService } from './services/auth-service'
 import { StatsService } from './services/stats-service'
 import { SuggestionService } from './services/suggestion-service'
 import { TicketService } from './services/ticket-service'
+import { TriageService } from './services/triage-service'
 
 export function buildServices() {
   const tickets = new TicketService(ticketRepository, replyRepository)
@@ -22,4 +24,8 @@ export function buildServices() {
     suggestions: new SuggestionService(tickets, userRepository),
     health: { checkDatabase: pingDatabase },
   }
+}
+
+export function buildTriageService() {
+  return new TriageService(triageRepository)
 }
