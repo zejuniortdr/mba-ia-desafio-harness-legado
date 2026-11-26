@@ -72,7 +72,9 @@ export class TicketService {
 
   async getDetails(user: CurrentUser, id: string) {
     await this.getById(user, id)
-    return this.tickets.findByIdWithDetails(id)
+    const details = await this.tickets.findByIdWithDetails(id)
+    if (!details) throw new AppError(404, 'not_found', 'Chamado não encontrado')
+    return details
   }
 
   async assign(user: CurrentUser, id: string) {

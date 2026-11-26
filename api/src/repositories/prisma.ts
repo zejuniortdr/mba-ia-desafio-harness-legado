@@ -5,3 +5,7 @@ export const prisma = new PrismaClient({
   datasources: { db: { url: env.DATABASE_URL } },
   log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 })
+
+export function pingDatabase() {
+  return prisma.$queryRaw`SELECT 1`
+}

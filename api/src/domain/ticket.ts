@@ -30,3 +30,25 @@ export interface CurrentUser {
   id: string
   role: Role
 }
+
+export interface ReplyWithAuthor {
+  id: string
+  ticketId: string
+  authorId: string
+  body: string
+  createdAt: Date
+  author: { id: string; name: string; role: Role }
+}
+
+export interface Attachment {
+  id: string
+  ticketId: string
+  uploaderId: string
+  originalName: string
+  storedName: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: Date
+}
+
+export type TicketDetails = Ticket & { replies: ReplyWithAuthor[]; attachments: Attachment[] }
