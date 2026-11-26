@@ -1,0 +1,1 @@
+export const ORIGEM_DO_FRONT = `http://127.0.0.1:${5173}`
