@@ -5,32 +5,57 @@ import tseslint from 'typescript-eslint'
 
 const report = (context, node, message) => context.report({ node, message })
 
-const isProcess = (node) =>
-  (node.type === 'Identifier' && node.name === 'process') ||
-  (node.type === 'MemberExpression' && !node.computed && node.property.name === 'process')
-const propName = (node) =>
-  node.computed ? (node.property.type === 'Literal' ? node.property.value : undefined) : node.property.name
+// Nome estático de uma propriedade: a.b, a['b'] ou a[`b`]. Senão, undefined.
+const propName = (node) => {
+  if (!node.computed) return node.property.name
+  const p = node.property
+  if (p.type === 'Literal') return p.value
+  if (p.type === 'TemplateLiteral' && p.expressions.length === 0) return p.quasis[0].value.cooked
+  return undefined
+}
+const GLOBAL_OBJECTS = ['globalThis', 'global', 'window', 'self']
+const TS_WRAPPERS = ['TSAsExpression', 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSTypeAssertion']
+const unwrap = (node) => (TS_WRAPPERS.includes(node.type) ? unwrap(node.expression) : node)
+
+// Só é inofensivo o acesso direto a outra propriedade estática (process.exit, import.meta.url).
+// Qualquer outro uso (alias, cast, desestruturação, Reflect.get, acesso computado) pode chegar ao env.
+const safeAccess = (node) =>
+  node.parent.type === 'MemberExpression' &&
+  node.parent.object === node &&
+  propName(node.parent) !== undefined &&
+  propName(node.parent) !== 'env'
+
+const PROCESS_MODULE = /^(node:)?process$/
 
 // G5 (api): process.env só em api/src/config/.
 const g5Api = {
   create(context) {
     const msg = 'G5: process.env só pode ser lido em api/src/config/'
+    const check = (node) => {
+      if (!safeAccess(node)) report(context, node, msg)
+    }
     return {
-      MemberExpression(node) {
-        if (isProcess(node.object) && propName(node) === 'env') report(context, node, msg)
+      'Program:exit'(program) {
+        const scope = context.sourceCode.getScope(program)
+        const refs = [...scope.through, ...(scope.set.get('process')?.references ?? [])]
+        for (const ref of refs) if (ref.identifier.name === 'process') check(ref.identifier)
       },
-      VariableDeclarator(node) {
-        if (node.id.type === 'ObjectPattern' && node.init && isProcess(node.init)) {
-          if (node.id.properties.some((p) => p.type === 'Property' && (p.key.name ?? p.key.value) === 'env'))
-            report(context, node, msg)
-        }
+      MemberExpression(node) {
+        // globalThis.process, globalThis['process']...
+        const obj = unwrap(node.object)
+        if (obj.type === 'Identifier' && GLOBAL_OBJECTS.includes(obj.name) && propName(node) === 'process')
+          check(node)
       },
       ImportDeclaration(node) {
-        if (/^(node:)?process$/.test(node.source.value)) report(context, node, `${msg} (nem importando o módulo process)`)
+        if (PROCESS_MODULE.test(node.source.value)) report(context, node, `${msg} (nem importando o módulo process)`)
+      },
+      ImportExpression(node) {
+        if (node.source.type === 'Literal' && PROCESS_MODULE.test(node.source.value))
+          report(context, node, `${msg} (nem importando o módulo process)`)
       },
       CallExpression(node) {
         const [arg] = node.arguments
-        if (node.callee.name === 'require' && arg?.type === 'Literal' && /^(node:)?process$/.test(arg.value))
+        if (node.callee.name === 'require' && arg?.type === 'Literal' && PROCESS_MODULE.test(arg.value))
           report(context, node, `${msg} (nem importando o módulo process)`)
       },
     }
@@ -42,14 +67,8 @@ const g5Web = {
   create(context) {
     const msg = 'G5: import.meta.env só pode ser lido em web/src/config/'
     return {
-      MemberExpression(node) {
-        if (node.object.type === 'MetaProperty' && propName(node) === 'env') report(context, node, msg)
-      },
-      VariableDeclarator(node) {
-        if (node.id.type === 'ObjectPattern' && node.init?.type === 'MetaProperty') {
-          if (node.id.properties.some((p) => p.type === 'Property' && (p.key.name ?? p.key.value) === 'env'))
-            report(context, node, msg)
-        }
+      MetaProperty(node) {
+        if (node.meta.name === 'import' && node.property.name === 'meta' && !safeAccess(node)) report(context, node, msg)
       },
     }
   },
@@ -109,12 +128,14 @@ const r3 = {
   },
 }
 
+const CODE = '{ts,tsx,mts,cts,js,jsx,mjs,cjs}'
+
 const balcao = { rules: { G5api: g5Api, G5web: g5Web, R1: r1, R2: r2, R3: r3 } }
 
 export default tseslint.config(
   { ignores: ['**/node_modules/**', '**/dist/**'] },
   {
-    files: ['api/src/**/*.ts', 'api/prisma/**/*.ts', 'api/test/**/*.ts', 'web/src/**/*.{ts,tsx}'],
+    files: [`api/src/**/*.${CODE}`, `api/prisma/**/*.${CODE}`, `api/test/**/*.${CODE}`, `web/src/**/*.${CODE}`],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     // Comentário de supressão não vale: nenhuma diretiva inline é aceita.
     linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' },
@@ -126,22 +147,22 @@ export default tseslint.config(
     },
   },
   {
-    files: ['api/src/**/*.ts'],
+    files: [`api/src/**/*.${CODE}`],
     ignores: ['api/src/config/**'],
     rules: { 'balcao/G5api': 'error', 'balcao/R1': 'error' },
   },
   {
-    files: ['api/src/**/*.ts'],
+    files: [`api/src/**/*.${CODE}`],
     ignores: ['api/src/repositories/prisma.ts'],
     rules: { 'balcao/R2': 'error' },
   },
   {
-    files: ['web/src/**/*.{ts,tsx}'],
+    files: [`web/src/**/*.${CODE}`],
     ignores: ['web/src/config/**'],
     rules: { 'balcao/G5web': 'error', 'balcao/R1': 'error' },
   },
   {
-    files: ['api/prisma/**/*.ts'],
+    files: [`api/prisma/**/*.${CODE}`],
     rules: { 'balcao/R3': 'error' },
   },
 )

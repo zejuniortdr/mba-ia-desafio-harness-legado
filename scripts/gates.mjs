@@ -57,9 +57,11 @@ for (const pkg of ['api', 'web']) {
   const before = violations.size
   const out = join(TMP, 'vitest.json')
   const r = run('G3 vitest', 'vitest', ['run', '--reporter=json', `--outputFile=${out}`], join(ROOT, 'api'))
-  if (existsSync(out)) {
+  try {
     const report = JSON.parse(readFileSync(out, 'utf8'))
     for (const t of report.testResults ?? []) if (t.status !== 'passed') add('G3', t.name)
+  } catch {
+    // relatório ausente ou ilegível: o guard abaixo marca a falha
   }
   guard('G3', 'api', r, before)
 }
