@@ -16,8 +16,8 @@ export default function NewTicketPage() {
     try {
       const ticket = await createTicket(title, description)
       navigate(`/tickets/${ticket.id}`)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
     }

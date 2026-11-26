@@ -5,7 +5,7 @@ import { TicketRepository } from '../repositories/ticket-repository'
 import { ReplyRepository } from '../repositories/reply-repository'
 import { notifyAssignee } from './notification-service'
 
-export const PAGE_SIZE = 20
+const PAGE_SIZE = 20
 
 const createTicketSchema = z.object({
   title: z.string().trim().min(3, 'Título deve ter entre 3 e 120 caracteres').max(120, 'Título deve ter entre 3 e 120 caracteres'),
@@ -19,17 +19,6 @@ const createTicketSchema = z.object({
 const replySchema = z.object({
   body: z.string().trim().min(1, 'A resposta não pode ser vazia').max(5000, 'A resposta pode ter no máximo 5000 caracteres'),
 })
-
-export function formatTicketRef(ticket: { id: string; title: string }) {
-  return `#${ticket.id.slice(0, 8)} (${ticket.title})`
-}
-
-const SLA_HOURS = { urgent: 4, high: 8, medium: 24, low: 72 }
-
-export function calculateSlaDeadline(ticket: Pick<Ticket, 'createdAt' | 'priority'>) {
-  const hours = SLA_HOURS[ticket.priority || 'medium']
-  return new Date(ticket.createdAt.getTime() + hours * 60 * 60 * 1000)
-}
 
 export class TicketService {
   constructor(

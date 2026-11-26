@@ -53,7 +53,7 @@ export class AttachmentService {
     }
     try {
       await this.tickets.getById(user, attachment.ticketId)
-    } catch (err) {
+    } catch {
       throw new AppError(404, 'not_found', 'Anexo não encontrado')
     }
     return { attachment, filePath: path.join(uploadDir, attachment.storedName) }

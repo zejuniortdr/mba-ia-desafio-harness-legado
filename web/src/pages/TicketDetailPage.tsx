@@ -10,12 +10,14 @@ import {
   getTicket,
   resolveTicket,
   suggestReply,
+  TicketCategory,
   TicketDetail,
+  TicketPriority,
+  TriageStatus,
   uploadAttachment,
 } from '../api/tickets'
 import StatusBadge from '../components/StatusBadge'
 import { categoryLabels, formatBytes, formatDate, priorityLabels } from '../utils/format'
-import type { TicketCategory, TicketPriority, TriageStatus } from '../../../api/src/domain/ticket'
 
 function triageText(triageStatus: TriageStatus, category: TicketCategory | null, priority: TicketPriority | null) {
   if (triageStatus === 'pending') return 'Em triagem'
@@ -53,8 +55,8 @@ export default function TicketDetailPage() {
     try {
       await action()
       load()
-    } catch (err: any) {
-      setActionError(err.message)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -71,8 +73,8 @@ export default function TicketDetailPage() {
     try {
       const data = await suggestReply(id!)
       setBody(data.suggestion)
-    } catch (err: any) {
-      setActionError(err.message)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err))
     }
   }
 

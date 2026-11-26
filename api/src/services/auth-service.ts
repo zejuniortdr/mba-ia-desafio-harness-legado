@@ -17,7 +17,7 @@ export const loginSchema = z.object({
   password: z.string(),
 })
 
-export function serializeUser(user: Pick<User, 'id' | 'name' | 'email' | 'role'>) {
+function serializeUser(user: Pick<User, 'id' | 'name' | 'email' | 'role'>) {
   return { id: user.id, name: user.name, email: user.email, role: user.role }
 }
 

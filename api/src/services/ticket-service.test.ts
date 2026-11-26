@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { TicketService, formatTicketRef } from './ticket-service'
+import { TicketService } from './ticket-service'
 import { AppError } from '../domain/errors'
-import { CurrentUser, ReplyWithAuthor, Ticket } from '../domain/ticket'
+import { CurrentUser, ReplyWithAuthor, Ticket, formatTicketRef } from '../domain/ticket'
 import { TicketFilter, TicketRepository, TicketUpdate } from '../repositories/ticket-repository'
 import { ReplyRepository } from '../repositories/reply-repository'
 

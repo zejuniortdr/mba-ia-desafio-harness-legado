@@ -14,8 +14,8 @@ export default function LoginPage() {
     try {
       await login(email, password)
       navigate('/tickets')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
   }
 

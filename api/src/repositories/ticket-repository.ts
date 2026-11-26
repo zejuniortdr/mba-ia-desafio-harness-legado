@@ -16,7 +16,7 @@ export interface TicketRepository {
   update(id: string, data: TicketUpdate): Promise<Ticket>
 }
 
-export class PrismaTicketRepository implements TicketRepository {
+class PrismaTicketRepository implements TicketRepository {
   create(data: { title: string; description: string; customerId: string }) {
     return prisma.ticket.create({ data })
   }

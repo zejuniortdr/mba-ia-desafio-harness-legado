@@ -6,7 +6,7 @@ export type TicketCategory = 'billing' | 'technical' | 'account' | 'other'
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
 
-export type TriageStatus = 'pending' | 'done' | 'failed'
+type TriageStatus = 'pending' | 'done' | 'failed'
 
 export const TICKET_STATUSES: TicketStatus[] = ['open', 'in_progress', 'resolved']
 export const TICKET_CATEGORIES: TicketCategory[] = ['billing', 'technical', 'account', 'other']
@@ -40,7 +40,7 @@ export interface ReplyWithAuthor {
   author: { id: string; name: string; role: Role }
 }
 
-export interface Attachment {
+interface Attachment {
   id: string
   ticketId: string
   uploaderId: string
@@ -52,3 +52,7 @@ export interface Attachment {
 }
 
 export type TicketDetails = Ticket & { replies: ReplyWithAuthor[]; attachments: Attachment[] }
+
+export function formatTicketRef(ticket: { id: string; title: string }) {
+  return `#${ticket.id.slice(0, 8)} (${ticket.title})`
+}
