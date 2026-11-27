@@ -1,0 +1,6 @@
+import { prisma } from '../repositories/prisma'
+
+export async function limparTriagensFalhas(): Promise<number> {
+  const { count } = await prisma.ticket.deleteMany({ where: { triageStatus: 'failed' } })
+  return count
+}

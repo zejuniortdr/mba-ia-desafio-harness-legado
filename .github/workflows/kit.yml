@@ -1,0 +1,23 @@
+name: kit-gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kit:
+    # Planta cada violação de kit-gates/violacoes (G1-G10 e R1-R4) e confere que os gates a barram.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: bash kit-gates/verificar.sh . "npm run gates"

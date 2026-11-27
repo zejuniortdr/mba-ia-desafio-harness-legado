@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, TicketCategory, TicketPriority } from '../domain/ticket'
+import { env } from '../config/env'
 
 export type Classification = {
   category: TicketCategory
@@ -48,7 +49,7 @@ export function suggestReplyFake(input: { customerName: string; title: string })
 }
 
 function openaiClient() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return new OpenAI({ apiKey: env.OPENAI_API_KEY })
 }
 
 async function classifyWithOpenAI(ticket: TicketInput): Promise<Classification> {
@@ -73,14 +74,14 @@ async function classifyWithOpenAI(ticket: TicketInput): Promise<Classification> 
 }
 
 export async function classifyTicket(ticket: TicketInput): Promise<Classification> {
-  if (process.env.AI_MODE === 'openai') {
+  if (env.AI_MODE === 'openai') {
     return classifyWithOpenAI(ticket)
   }
   return classifyFake(ticket)
 }
 
 export async function suggestReply(input: { customerName: string; title: string; description: string }) {
-  if (process.env.AI_MODE === 'openai') {
+  if (env.AI_MODE === 'openai') {
     const completion = await openaiClient().chat.completions.create({
       model: MODEL,
       messages: [

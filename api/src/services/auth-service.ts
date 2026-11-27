@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import type { User } from '@prisma/client'
 import { UserRepository } from '../repositories/user-repository'
 
 export class EmailTakenError extends Error {}
@@ -16,7 +17,7 @@ export const loginSchema = z.object({
   password: z.string(),
 })
 
-export function serializeUser(user: any) {
+function serializeUser(user: Pick<User, 'id' | 'name' | 'email' | 'role'>) {
   return { id: user.id, name: user.name, email: user.email, role: user.role }
 }
 
@@ -29,6 +30,11 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.password, 10)
     const user = await this.users.create({ name: input.name, email: input.email, passwordHash, role: 'customer' })
     return serializeUser(user)
+  }
+
+  async getProfile(id: string) {
+    const user = await this.users.findById(id)
+    return user ? serializeUser(user) : null
   }
 
   async login(input: z.infer<typeof loginSchema>) {

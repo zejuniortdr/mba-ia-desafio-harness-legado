@@ -1,0 +1,45 @@
+name: docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  up-docker:
+    # Alternativa em containers: sobe, sobe de novo sem derrubar e roda a caixa-preta.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: npm run up:docker (duas vezes)
+        run: |
+          npm run up:docker
+          npm run up:docker
+
+      - name: caixa-preta contra a API do container
+        run: |
+          cd blackbox && npm ci --no-audit --no-fund
+          API_URL="http://localhost:$(grep '^API_PORT=' ../.balcao/env | cut -d= -f2)" npm test
+
+      - name: logs dos containers
+        if: failure()
+        run: |
+          . scripts/lib.sh
+          COMPOSE_PROFILES=app compose logs --tail 100
+
+      - name: derrubar
+        if: always()
+        run: npm run down

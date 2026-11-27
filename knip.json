@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "eslint.config.mjs", ".dependency-cruiser.cjs"],
+      "project": ["scripts/*.mjs"]
+    },
+    "api": {
+      "entry": ["src/main.ts", "src/jobs/triage-worker.ts", "prisma/seed.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "prisma/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "test/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"]
+    },
+    "web": {
+      "entry": ["src/main.tsx"],
+      "project": ["src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"]
+    }
+  }
+}

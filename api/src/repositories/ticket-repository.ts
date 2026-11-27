@@ -1,5 +1,5 @@
 import { prisma } from './prisma'
-import { Ticket, TicketStatus } from '../domain/ticket'
+import { Ticket, TicketDetails, TicketStatus } from '../domain/ticket'
 
 export type TicketFilter = {
   customerId?: string
@@ -11,12 +11,12 @@ export type TicketUpdate = Partial<Pick<Ticket, 'status' | 'assigneeId' | 'categ
 export interface TicketRepository {
   create(data: { title: string; description: string; customerId: string }): Promise<Ticket>
   findById(id: string): Promise<Ticket | null>
-  findByIdWithDetails(id: string): Promise<any | null>
+  findByIdWithDetails(id: string): Promise<TicketDetails | null>
   list(filter: TicketFilter, page: number, pageSize: number): Promise<{ items: Ticket[]; total: number }>
   update(id: string, data: TicketUpdate): Promise<Ticket>
 }
 
-export class PrismaTicketRepository implements TicketRepository {
+class PrismaTicketRepository implements TicketRepository {
   create(data: { title: string; description: string; customerId: string }) {
     return prisma.ticket.create({ data })
   }
@@ -39,7 +39,7 @@ export class PrismaTicketRepository implements TicketRepository {
   }
 
   async list(filter: TicketFilter, page: number, pageSize: number) {
-    const where: any = {}
+    const where: TicketFilter = {}
     if (filter.customerId) where.customerId = filter.customerId
     if (filter.status) where.status = filter.status
     const [items, total] = await Promise.all([

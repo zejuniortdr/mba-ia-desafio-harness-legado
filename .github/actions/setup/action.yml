@@ -1,0 +1,26 @@
+name: setup
+description: Node com cache e dependências da raiz, da api (com Prisma Client) e do web, sempre por npm ci.
+inputs:
+  node-version:
+    description: Versão do Node
+    default: '22'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: |
+          package-lock.json
+          api/package-lock.json
+          web/package-lock.json
+          blackbox/package-lock.json
+    - shell: bash
+      run: npm ci --no-audit --no-fund
+    - shell: bash
+      working-directory: api
+      run: npm ci --no-audit --no-fund && npx prisma generate
+    - shell: bash
+      working-directory: web
+      run: npm ci --no-audit --no-fund

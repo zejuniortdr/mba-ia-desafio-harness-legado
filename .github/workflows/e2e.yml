@@ -1,0 +1,83 @@
+name: e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  duas-copias:
+    # Fluxo do avaliador: clone limpo, subida repetida, segunda worktree, caixa-preta nas duas e hook.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COPIA_B: ${{ github.workspace }}/../copia-b
+    steps:
+      - uses: actions/checkout@v4
+      # Só o Node: as dependências são instaladas pelo próprio `npm run up`, como num clone limpo.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: subida da cópia A (duas vezes, sem derrubar)
+        run: |
+          npm run up
+          npm run up
+
+      - name: subida da cópia B (worktree)
+        run: |
+          git worktree add "$COPIA_B"
+          cd "$COPIA_B" && npm run up
+
+      - name: portas, banco e anexos diferentes
+        run: |
+          cat .balcao/env "$COPIA_B/.balcao/env"
+          ! cmp -s .balcao/env "$COPIA_B/.balcao/env"
+
+      - name: caixa-preta contra as duas cópias
+        run: |
+          api() { echo "http://localhost:$(grep '^API_PORT=' "$1/.balcao/env" | cut -d= -f2)"; }
+          cd blackbox && npm ci --no-audit --no-fund
+          API_URL=$(api ..) npm test
+          API_URL=$(api "$COPIA_B") npm test
+
+      - name: derrubar B não afeta A; B sobe de novo
+        run: |
+          (cd "$COPIA_B" && npm run down)
+          port=$(grep '^API_PORT=' .balcao/env | cut -d= -f2)
+          node -e "fetch('http://localhost:$port/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+          (cd "$COPIA_B" && npm run up && npm run down)
+
+      - name: hook bloqueia erro de tipo e variável sem uso
+        run: |
+          git config user.email ci@example.invalid
+          git config user.name ci
+          printf "export const total: number = 'muitos'\n" > api/src/services/teste-hook.ts
+          git add api/src/services/teste-hook.ts
+          if git commit -m "teste do hook"; then echo "hook não bloqueou o erro de tipo"; exit 1; fi
+          git reset -q && rm api/src/services/teste-hook.ts
+          printf "export function f(): number {\n  const sobra = 1\n  return 2\n}\n" > api/src/services/teste-hook.ts
+          git add api/src/services/teste-hook.ts
+          if git commit -m "teste do hook"; then echo "hook não bloqueou a variável sem uso"; exit 1; fi
+          git reset -q && rm api/src/services/teste-hook.ts
+
+      - name: logs das cópias
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-e2e
+          path: |
+            .balcao/logs/
+            ${{ env.COPIA_B }}/.balcao/logs/
+
+      - name: derrubar
+        if: always()
+        run: npm run down
